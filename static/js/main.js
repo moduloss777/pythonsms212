@@ -747,13 +747,40 @@ function showContactsPreview(data) {
     document.getElementById('validCount').textContent = data.valid_rows;
     document.getElementById('totalCount').textContent = data.total_rows;
 
+    // Actualizar la sección de variables personalizadas en la guía
+    if (data.detected_variables && data.detected_variables.length > 0) {
+        const customVarsList = document.getElementById('customVariablesList');
+        if (customVarsList) {
+            customVarsList.innerHTML = data.detected_variables
+                .sort()
+                .map(v => `<div class="variable-item"><code>{{${v}}}</code></div>`)
+                .join('');
+        }
+    }
+
     if (data.errors && data.errors.length > 0) {
         showAlert(`⚠️ ${data.errors.length} contactos inválidos`, 'warning');
     }
 }
 
+function updateCustomVariablesDisplay() {
+    // Mostrar variables personalizadas detectadas en la sección de guía
+    const variables = new Set();
+    currentContactsData.forEach(c => {
+        Object.keys(c.variables || {}).forEach(v => variables.add(v));
+    });
+
+    const customVarsList = document.getElementById('customVariablesList');
+    if (customVarsList && variables.size > 0) {
+        customVarsList.innerHTML = Array.from(variables)
+            .sort()
+            .map(v => `<div class="variable-item"><code>{{${v}}}</code> - Variable del Excel</div>`)
+            .join('');
+    }
+}
+
 function proceedToTemplate() {
-    // Mostrar variables disponibles
+    // Mostrar variables disponibles en la plantilla
     const variables = new Set();
     currentContactsData.forEach(c => {
         Object.keys(c.variables || {}).forEach(v => variables.add(v));
@@ -761,8 +788,12 @@ function proceedToTemplate() {
 
     const variablesList = document.getElementById('variablesList');
     variablesList.innerHTML = Array.from(variables)
+        .sort()
         .map(v => `<span>{{${v}}}</span>`)
         .join('');
+
+    // También actualizar la sección de guía
+    updateCustomVariablesDisplay();
 
     showCampaignStep('step3Template');
 }

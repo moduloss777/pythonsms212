@@ -3,11 +3,15 @@ Configuración centralizada para Traffilink API
 Almacena variables de entorno y constantes del sistema
 """
 import os
+from dotenv import load_dotenv
+
+# Cargar variables de entorno desde .env
+load_dotenv()
 
 # ==================== TRAFFILINK API CONFIG ====================
-TRAFFILINK_BASE_URL = "http://47.236.91.242:20003"
-TRAFFILINK_ACCOUNT = "0152C274"
-TRAFFILINK_PASSWORD = "G2o0jRnm"
+TRAFFILINK_BASE_URL = os.getenv("TRAFFILINK_BASE_URL", "http://47.236.91.242:20003")
+TRAFFILINK_ACCOUNT = os.getenv("TRAFFILINK_ACCOUNT", "0152C274")
+TRAFFILINK_PASSWORD = os.getenv("TRAFFILINK_PASSWORD", "G2o0jRnm")
 
 # ==================== PARAMETROS DE LA API ====================
 # Límites de envío según método
