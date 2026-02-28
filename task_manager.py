@@ -123,10 +123,16 @@ class TaskManager:
         Returns:
             Lista de tareas
         """
-        tasks = self.db.execute_query(
-            "SELECT * FROM tasks WHERE status = ? OR ? IS NULL ORDER BY created_at DESC",
-            (status, status)
-        )
+        # Usar lógica condicional para evitar error SQL
+        if status:
+            tasks = self.db.execute_query(
+                "SELECT * FROM tasks WHERE status = ? ORDER BY created_at DESC",
+                (status,)
+            )
+        else:
+            tasks = self.db.execute_query(
+                "SELECT * FROM tasks ORDER BY created_at DESC"
+            )
 
         result = []
         for task in tasks:

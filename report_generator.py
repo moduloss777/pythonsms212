@@ -167,17 +167,29 @@ class ReportGenerator:
 
         stats = self.db.get_statistics()
 
+        # Usar .get() con fallback para evitar KeyError
+        total_sms = stats.get('total_sms', 0)
+        sent_sms = stats.get('sent_sms', 0)
+        delivered = stats.get('delivered_reports', 0)
+        failed = total_sms - sent_sms
+
         return {
             "title": "Resumen de Actividad",
             "generated_at": datetime.now().isoformat(),
             "statistics": stats,
             "summary": {
-                "total_sms_messages": stats['total_sms_messages'],
-                "sent_messages": stats['sent_messages'],
-                "failed_messages": stats['failed_messages'],
-                "total_delivered": stats['total_delivered'],
-                "active_tasks": stats['active_tasks'],
-                "total_transactions": stats['total_transactions']
+                "total_sms_messages": total_sms,
+                "sent_messages": sent_sms,
+                "failed_messages": failed,
+                "total_delivered": delivered,
+                "active_tasks": stats.get('active_tasks', 0),
+                "total_transactions": stats.get('total_transactions', 0),
+                # Agregar también estructura alternativa para compatibilidad
+                "today": {
+                    "sent": sent_sms,
+                    "delivered": delivered,
+                    "failed": failed
+                }
             }
         }
 
