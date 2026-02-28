@@ -74,6 +74,20 @@
         </form>
     </section>
 
+    <!-- Sección de Diagnóstico -->
+    <section id="diagnosticSection" class="section">
+        <h3>🔍 Diagnóstico de la API Traffilink</h3>
+        <p class="text-muted">Verifica que tu conexión a Traffilink esté configurada correctamente</p>
+
+        <button class="btn btn-secondary" onclick="runDiagnostic()">
+            🔍 Verificar Conexión a Traffilink
+        </button>
+
+        <div id="diagnosticResult" style="margin-top: 20px; display: none;">
+            <div id="diagnosticContent"></div>
+        </div>
+    </section>
+
     <!-- Sección de Guía de Etiquetas Disponibles -->
     <section id="variablesGuideSection" class="section">
         <h3>📚 Guía de Etiquetas Disponibles para Campañas</h3>

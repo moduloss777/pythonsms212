@@ -161,6 +161,55 @@ def api_dashboard_insights():
         return jsonify({"code": 0, "insights": mock_provider.get_insights()["insights"]})
 
 
+@app.route("/api/diagnostic/traffilink")
+def api_diagnostic_traffilink():
+    """Diagnóstico de conexión a Traffilink API"""
+    logger.info("🔍 GET /api/diagnostic/traffilink")
+
+    try:
+        # Verificar credenciales
+        from config import TRAFFILINK_ACCOUNT, TRAFFILINK_PASSWORD, TRAFFILINK_BASE_URL
+
+        if not TRAFFILINK_ACCOUNT or not TRAFFILINK_PASSWORD:
+            return jsonify({
+                "status": "error",
+                "message": "❌ Credenciales no configuradas en .env",
+                "details": "TRAFFILINK_ACCOUNT y/o TRAFFILINK_PASSWORD no tienen valores"
+            }), 400
+
+        # Intentar conectar
+        result = sms_sender.api.get_balance()
+
+        if result.get("code") == 0:
+            return jsonify({
+                "status": "success",
+                "message": "✅ Conexión exitosa a Traffilink API",
+                "balance": result.get("balance"),
+                "gift_balance": result.get("gift_balance"),
+                "account": TRAFFILINK_ACCOUNT,
+                "base_url": TRAFFILINK_BASE_URL
+            })
+        else:
+            error_code = result.get("code", -999)
+            error_msg = result.get("error_message", "Error desconocido")
+            return jsonify({
+                "status": "error",
+                "message": f"❌ Error de Traffilink: {error_msg}",
+                "code": error_code,
+                "details": f"Código {error_code} - Posibles causas: credenciales inválidas, servidor no disponible, o IP bloqueada",
+                "account": TRAFFILINK_ACCOUNT,
+                "base_url": TRAFFILINK_BASE_URL
+            }), 400
+
+    except Exception as e:
+        logger.error(f"❌ Error en diagnóstico: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": f"❌ Error de diagnóstico: {str(e)}",
+            "details": "Error al intentar conectar con Traffilink"
+        }), 500
+
+
 # ==================== API: SMS ====================
 
 @app.route("/api/sms/send", methods=["POST"])

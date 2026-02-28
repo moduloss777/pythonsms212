@@ -943,3 +943,64 @@ function showCampaignStep(stepId) {
         step.style.display = 'block';
     }
 }
+
+// ========================================
+// DIAGNOSTIC FUNCTION
+// ========================================
+
+async function runDiagnostic() {
+    const resultDiv = document.getElementById('diagnosticResult');
+    const contentDiv = document.getElementById('diagnosticContent');
+
+    resultDiv.style.display = 'block';
+    contentDiv.innerHTML = '<p style="text-align: center;">🔍 Verificando conexión a Traffilink...</p>';
+
+    try {
+        const response = await fetch('/api/diagnostic/traffilink');
+        const data = await response.json();
+
+        let html = '';
+
+        if (data.status === 'success') {
+            html = `
+                <div style="background: #d4edda; border: 2px solid #28a745; border-radius: 10px; padding: 20px;">
+                    <h4 style="color: #155724; margin-top: 0;">✅ Conexión Exitosa</h4>
+                    <p><strong>Cuenta:</strong> ${data.account}</p>
+                    <p><strong>URL Base:</strong> ${data.base_url}</p>
+                    <p><strong>Balance:</strong> $${data.balance || 0}</p>
+                    <p><strong>Balance Regalo:</strong> $${data.gift_balance || 0}</p>
+                    <p style="color: #155724; margin-top: 15px;">✅ Tu API está correctamente configurada y funcionando.</p>
+                </div>
+            `;
+        } else {
+            html = `
+                <div style="background: #f8d7da; border: 2px solid #dc3545; border-radius: 10px; padding: 20px;">
+                    <h4 style="color: #721c24; margin-top: 0;">❌ Error de Conexión</h4>
+                    <p><strong>Mensaje:</strong> ${data.message}</p>
+                    <p><strong>Detalles:</strong> ${data.details || 'No hay detalles adicionales'}</p>
+                    <p><strong>Cuenta:</strong> ${data.account || 'N/A'}</p>
+                    <p><strong>URL Base:</strong> ${data.base_url || 'N/A'}</p>
+                    <p style="margin-top: 15px; color: #721c24;">
+                        <strong>Posibles soluciones:</strong><br>
+                        • Verifica que las credenciales en .env sean correctas<br>
+                        • Comprueba que el servidor de Traffilink esté disponible<br>
+                        • Si recibes código -1: las credenciales son inválidas<br>
+                        • Contacta al proveedor de Traffilink si el problema persiste
+                    </p>
+                </div>
+            `;
+        }
+
+        contentDiv.innerHTML = html;
+        showAlert(data.status === 'success' ? '✅ Conexión verificada correctamente' : '❌ Error de conexión', data.status === 'success' ? 'success' : 'danger');
+
+    } catch (error) {
+        contentDiv.innerHTML = `
+            <div style="background: #f8d7da; border: 2px solid #dc3545; border-radius: 10px; padding: 20px;">
+                <h4 style="color: #721c24;">❌ Error al realizar diagnóstico</h4>
+                <p>${error.message}</p>
+            </div>
+        `;
+        showAlert('Error al realizar diagnóstico: ' + error.message, 'danger');
+    }
+}

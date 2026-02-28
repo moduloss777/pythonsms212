@@ -136,13 +136,17 @@ class TaskManager:
 
         result = []
         for task in tasks:
-            result.append({
-                "id": task["id"],
-                "type_name": TASK_TYPES.get(task["task_type"], "Desconocido"),
-                "contacts_count": len(task["contacts"].split(",")),
-                "status": task["status"],
-                "executed": task["executed_count"]
-            })
+            try:
+                result.append({
+                    "id": task["id"],
+                    "type_name": TASK_TYPES.get(task["task_type"], "Desconocido"),
+                    "contacts_count": len(task.get("contacts", "").split(",")) if task.get("contacts") else 0,
+                    "status": task["status"],
+                    "executed": task.get("executed_count", 0)
+                })
+            except Exception as e:
+                logger.warning(f"⚠️ Error al procesar tarea {task.get('id')}: {str(e)}")
+                continue
 
         return result
 
