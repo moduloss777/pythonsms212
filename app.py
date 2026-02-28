@@ -325,6 +325,143 @@ def api_tasks_cancel(task_id):
         return jsonify({"code": -1, "error": str(e)}), 500
 
 
+# ==================== API: CAMPAÑAS DINÁMICAS ====================
+
+@app.route("/api/campaigns/upload", methods=["POST"])
+def api_campaigns_upload():
+    """Cargar archivo Excel con contactos"""
+    logger.info("📤 POST /api/campaigns/upload")
+
+    try:
+        # Verificar que se envió archivo
+        if 'file' not in request.files:
+            return jsonify({"code": -1, "error": "No se envió archivo"}), 400
+
+        file = request.files['file']
+
+        if file.filename == '':
+            return jsonify({"code": -1, "error": "Archivo vacío"}), 400
+
+        # Importar excel_loader
+        from excel_loader import excel_loader
+
+        # Guardar temporalmente
+        import tempfile
+        import os
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename)[1]) as tmp:
+            file.save(tmp.name)
+            result = excel_loader.read_excel(tmp.name)
+
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f"❌ Error: {str(e)}")
+        return jsonify({"code": -1, "error": str(e)}), 500
+
+
+@app.route("/api/campaigns/create", methods=["POST"])
+def api_campaigns_create():
+    """Crear campaña con Excel cargado"""
+    logger.info("📝 POST /api/campaigns/create")
+
+    try:
+        data = request.get_json()
+
+        import uuid
+        from campaign_processor import campaign_processor
+
+        campaign_id = str(uuid.uuid4())
+
+        result = campaign_processor.create_campaign(
+            campaign_id=campaign_id,
+            name=data.get('name', 'Sin nombre'),
+            excel_import_id=data.get('excel_import_id'),
+            template=data.get('template', '')
+        )
+
+        if result['success']:
+            return jsonify({
+                "code": 0,
+                "campaign_id": campaign_id,
+                "message": "Campaña creada"
+            })
+        else:
+            return jsonify({
+                "code": -1,
+                "error": result['error']
+            }), 400
+
+    except Exception as e:
+        logger.error(f"❌ Error: {str(e)}")
+        return jsonify({"code": -1, "error": str(e)}), 500
+
+
+@app.route("/api/campaigns/<campaign_id>/process", methods=["POST"])
+def api_campaigns_process(campaign_id):
+    """Procesar campaña y sustituir variables"""
+    logger.info(f"⚙️ POST /api/campaigns/{campaign_id}/process")
+
+    try:
+        data = request.get_json()
+        from campaign_processor import campaign_processor
+
+        result = campaign_processor.process_contacts(
+            campaign_id=campaign_id,
+            contacts=data.get('contacts', []),
+            template=data.get('template', '')
+        )
+
+        return jsonify({
+            "code": 0 if result['success'] else -1,
+            "data": result
+        })
+
+    except Exception as e:
+        logger.error(f"❌ Error: {str(e)}")
+        return jsonify({"code": -1, "error": str(e)}), 500
+
+
+@app.route("/api/campaigns/<campaign_id>/send", methods=["POST"])
+def api_campaigns_send(campaign_id):
+    """Enviar campaña masiva"""
+    logger.info(f"🚀 POST /api/campaigns/{campaign_id}/send")
+
+    try:
+        from campaign_processor import campaign_processor
+
+        result = campaign_processor.send_campaign(campaign_id)
+
+        return jsonify({
+            "code": 0 if result['success'] else -1,
+            "data": result
+        })
+
+    except Exception as e:
+        logger.error(f"❌ Error: {str(e)}")
+        return jsonify({"code": -1, "error": str(e)}), 500
+
+
+@app.route("/api/campaigns/<campaign_id>/progress", methods=["GET"])
+def api_campaigns_progress(campaign_id):
+    """Obtener progreso de campaña"""
+    logger.info(f"📊 GET /api/campaigns/{campaign_id}/progress")
+
+    try:
+        from campaign_processor import campaign_processor
+
+        progress = campaign_processor.get_progress(campaign_id)
+
+        return jsonify({
+            "code": 0,
+            "data": progress
+        })
+
+    except Exception as e:
+        logger.error(f"❌ Error: {str(e)}")
+        return jsonify({"code": -1, "error": str(e)}), 500
+
+
 # ==================== MANEJO DE ERRORES ====================
 
 @app.errorhandler(404)
