@@ -129,6 +129,119 @@
             <button type="submit" class="btn btn-primary">➕ Crear Tarea</button>
         </form>
     </section>
+
+    <!-- Sección de Campañas Dinámicas con Etiquetas -->
+    <section id="campaignsSection" class="section">
+        <h3>🚀 Campañas Masivas con Etiquetas Dinámicas</h3>
+
+        <!-- PASO 1: Cargar Excel -->
+        <div id="step1Upload" class="campaign-step">
+            <h4>📤 Paso 1: Cargar Archivo Excel</h4>
+            <p class="text-muted">Carga un archivo con tus contactos y variables personalizadas</p>
+            <div class="upload-area" id="excelUploadArea">
+                <input type="file" id="excelFile" accept=".xlsx,.xls,.csv" style="display:none;" />
+                <button type="button" class="btn btn-secondary" onclick="triggerExcelUpload()">
+                    📤 Seleccionar Archivo Excel/CSV
+                </button>
+                <p class="small text-muted" style="margin-top: 10px;">
+                    ✅ Formatos: .xlsx, .xls, .csv
+                    <br>✅ Debe tener columna: "número", "phone" o "cel"
+                    <br>✅ Máximo 10MB
+                </p>
+            </div>
+            <div id="uploadProgress" style="display:none; margin-top: 20px;">
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="uploadProgressBar"></div>
+                </div>
+                <p id="uploadStatus">Cargando archivo...</p>
+            </div>
+        </div>
+
+        <!-- PASO 2: Validar Contactos -->
+        <div id="step2Preview" class="campaign-step" style="display:none;">
+            <h4>✅ Paso 2: Validar Contactos (<span id="validCount">0</span>/<span id="totalCount">0</span>)</h4>
+            <div id="contactsPreview" style="max-height: 300px; overflow-y: auto; margin: 15px 0;"></div>
+            <button type="button" class="btn btn-primary" onclick="proceedToTemplate()">
+                Siguiente → Crear Plantilla
+            </button>
+        </div>
+
+        <!-- PASO 3: Crear Plantilla -->
+        <div id="step3Template" class="campaign-step" style="display:none;">
+            <h4>📝 Paso 3: Crear Plantilla con Variables</h4>
+
+            <div class="form-group">
+                <label for="campaignName">Nombre de la Campaña:</label>
+                <input type="text" id="campaignName" placeholder="Ej: Promoción Diciembre 2026" />
+            </div>
+
+            <div class="form-group">
+                <label for="messageTemplate">Plantilla de Mensaje:</label>
+                <textarea id="messageTemplate" rows="4" placeholder="Hola {{nombre}}, tienes {{descuento}}% de descuento en {{empresa}}. Debes {{deuda}} COP."></textarea>
+                <small style="display: block; margin-top: 8px; color: #666;">
+                    💡 Escribe {{nombre}}, {{deuda}}, {{empresa}} para usar tus variables
+                </small>
+            </div>
+
+            <div id="availableVariables" style="background: #f0f0f0; padding: 15px; border-radius: 5px; margin: 15px 0;">
+                <strong>Variables detectadas en Excel:</strong>
+                <div id="variablesList" style="margin-top: 10px;"></div>
+            </div>
+
+            <div class="form-group">
+                <label>📌 Preview (Primer Contacto):</label>
+                <div id="messagePreview" style="background: #e3f2fd; padding: 15px; border-radius: 5px; min-height: 60px; border-left: 4px solid #2196F3;">
+                    El preview aparecerá aquí...
+                </div>
+            </div>
+
+            <button type="button" class="btn btn-primary" onclick="proceedToSend()">
+                Siguiente → Revisar y Enviar
+            </button>
+        </div>
+
+        <!-- PASO 4: Revisar y Enviar -->
+        <div id="step4Send" class="campaign-step" style="display:none;">
+            <h4>📋 Paso 4: Revisar y Confirmar Envío</h4>
+
+            <div style="background: #f5f5f5; padding: 20px; border-radius: 10px; margin: 20px 0;">
+                <p><strong>Campaña:</strong> <span id="summaryName"></span></p>
+                <p><strong>Contactos a enviar:</strong> <span id="summaryCount"></span></p>
+                <p><strong>Preview del mensaje:</strong></p>
+                <div id="summaryPreview" style="background: white; padding: 10px; border-left: 4px solid #2196F3; margin-top: 10px;"></div>
+            </div>
+
+            <button type="button" class="btn btn-success" style="font-size: 16px; padding: 15px 30px;" onclick="sendCampaign()">
+                🚀 ENVIAR CAMPAÑA AHORA
+            </button>
+            <button type="button" class="btn btn-secondary" onclick="backToTemplate()">
+                ◀ Volver a Editar
+            </button>
+        </div>
+
+        <!-- PROGRESO DE ENVÍO -->
+        <div id="campaignProgress" style="display:none;">
+            <h4>📤 Enviando Campaña en Progreso...</h4>
+            <div class="progress-bar-container" style="height: 40px; margin: 20px 0;">
+                <div class="progress-bar" id="campaignProgressBar" style="height: 100%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;"></div>
+            </div>
+            <p id="campaignProgressText" style="text-align: center; font-size: 16px;">0 / 100 enviados (0%)</p>
+            <p id="campaignStatus" style="text-align: center; color: #666;">Iniciando envío...</p>
+        </div>
+
+        <!-- RESULTADOS -->
+        <div id="campaignResults" style="display:none;">
+            <h4>✅ ¡Campaña Enviada Exitosamente!</h4>
+            <div style="background: #d4edda; padding: 20px; border-radius: 10px; border-left: 4px solid #28a745; margin: 20px 0;">
+                <p>✅ <strong>Enviados:</strong> <span id="resultsSent">0</span> SMS</p>
+                <p>❌ <strong>Fallidos:</strong> <span id="resultsFailed">0</span> SMS</p>
+                <p>⏱️ <strong>Duración:</strong> <span id="resultsDuration">0s</span></p>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="newCampaign()">
+                📝 Nueva Campaña
+            </button>
+        </div>
+    </section>
 </div>
 
 <style>
@@ -303,6 +416,107 @@
         margin: 15px 0;
     }
 
+    /* ========== CAMPAÑAS DINÁMICAS ========== */
+    .campaign-step {
+        background: white;
+        padding: 25px;
+        margin: 20px 0;
+        border-radius: 10px;
+        border-left: 4px solid #2196F3;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .campaign-step h4 {
+        margin: 0 0 15px 0;
+        color: #333;
+        font-size: 1.1rem;
+    }
+
+    .upload-area {
+        border: 2px dashed #2196F3;
+        padding: 40px;
+        border-radius: 10px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: #f0f8ff;
+    }
+
+    .upload-area:hover {
+        background: #2196F3;
+        color: white;
+        border-color: #1976D2;
+    }
+
+    .upload-area:hover p {
+        color: inherit;
+    }
+
+    .progress-bar-container {
+        background: #e0e0e0;
+        border-radius: 10px;
+        overflow: hidden;
+        margin: 15px 0;
+        height: 30px;
+    }
+
+    .progress-bar {
+        background: linear-gradient(90deg, #4CAF50 0%, #2196F3 100%);
+        height: 100%;
+        width: 0%;
+        transition: width 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 12px;
+    }
+
+    .text-muted {
+        color: #999;
+    }
+
+    #contactsPreview {
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        background: #fafafa;
+    }
+
+    #contactsPreview table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    #contactsPreview th,
+    #contactsPreview td {
+        padding: 10px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+        font-size: 13px;
+    }
+
+    #contactsPreview th {
+        background: #f0f0f0;
+        font-weight: bold;
+    }
+
+    #variablesList {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    #variablesList span {
+        background: white;
+        padding: 8px 15px;
+        border-radius: 20px;
+        border: 1px solid #2196F3;
+        color: #2196F3;
+        font-size: 13px;
+        font-weight: 500;
+    }
+
     @media (max-width: 768px) {
         .stats-grid {
             grid-template-columns: 1fr;
@@ -310,6 +524,14 @@
 
         .charts-section {
             grid-template-columns: 1fr;
+        }
+
+        .campaign-step {
+            padding: 15px;
+        }
+
+        .upload-area {
+            padding: 20px;
         }
     }
 </style>

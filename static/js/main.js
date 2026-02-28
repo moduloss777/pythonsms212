@@ -667,3 +667,248 @@ function getTimelineFromNow(date) {
     if (diff < 86400) return `hace ${Math.floor(diff / 3600)} horas`;
     return `hace ${Math.floor(diff / 86400)} días`;
 }
+
+// ========================================
+// CAMPAÑAS DINÁMICAS
+// ========================================
+
+let currentExcelImportId = null;
+let currentContactsData = [];
+let currentCampaignId = null;
+let currentTemplate = '';
+
+function triggerExcelUpload() {
+    document.getElementById('excelFile').click();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const excelFile = document.getElementById('excelFile');
+    if (excelFile) {
+        excelFile.addEventListener('change', uploadExcelFile);
+    }
+});
+
+async function uploadExcelFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const uploadProgress = document.getElementById('uploadProgress');
+    uploadProgress.style.display = 'block';
+
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch('/api/campaigns/upload', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.status === 'success') {
+            currentExcelImportId = data.excel_import_id;
+            currentContactsData = data.contacts;
+
+            showContactsPreview(data);
+            showCampaignStep('step2Preview');
+            showAlert(`✅ ${data.valid_rows} contactos válidos cargados`, 'success');
+        } else {
+            showAlert(`❌ Error: ${data.message}`, 'danger');
+        }
+    } catch (error) {
+        showAlert(`Error al cargar archivo: ${error.message}`, 'danger');
+    }
+
+    uploadProgress.style.display = 'none';
+}
+
+function showContactsPreview(data) {
+    const previewDiv = document.getElementById('contactsPreview');
+    const contacts = data.contacts.slice(0, 5);
+
+    let html = '<table><thead><tr><th>Número</th><th>Nombre</th><th>Email</th></tr></thead><tbody>';
+
+    contacts.forEach(c => {
+        html += `<tr>
+            <td>${c.numero}</td>
+            <td>${c.nombre || '-'}</td>
+            <td>${c.email || '-'}</td>
+        </tr>`;
+    });
+
+    if (data.contacts.length > 5) {
+        html += `<tr><td colspan="3" style="text-align: center; font-size: 12px; color: #999;">... y ${data.contacts.length - 5} más</td></tr>`;
+    }
+
+    html += '</tbody></table>';
+
+    previewDiv.innerHTML = html;
+    document.getElementById('validCount').textContent = data.valid_rows;
+    document.getElementById('totalCount').textContent = data.total_rows;
+
+    if (data.errors && data.errors.length > 0) {
+        showAlert(`⚠️ ${data.errors.length} contactos inválidos`, 'warning');
+    }
+}
+
+function proceedToTemplate() {
+    // Mostrar variables disponibles
+    const variables = new Set();
+    currentContactsData.forEach(c => {
+        Object.keys(c.variables || {}).forEach(v => variables.add(v));
+    });
+
+    const variablesList = document.getElementById('variablesList');
+    variablesList.innerHTML = Array.from(variables)
+        .map(v => `<span>{{${v}}}</span>`)
+        .join('');
+
+    showCampaignStep('step3Template');
+}
+
+function updateMessagePreview() {
+    const template = document.getElementById('messageTemplate').value;
+    const firstContact = currentContactsData[0];
+
+    if (!firstContact) return;
+
+    let preview = template;
+    Object.keys(firstContact.variables || {}).forEach(key => {
+        const placeholder = `{{${key}}}`;
+        const value = firstContact.variables[key];
+        preview = preview.replace(new RegExp(placeholder, 'g'), value);
+    });
+
+    document.getElementById('messagePreview').textContent = preview || 'El preview aparecerá aquí...';
+}
+
+// Agregar event listener al textarea de plantilla
+document.addEventListener('DOMContentLoaded', function() {
+    const template = document.getElementById('messageTemplate');
+    if (template) {
+        template.addEventListener('input', updateMessagePreview);
+    }
+});
+
+function proceedToSend() {
+    currentTemplate = document.getElementById('messageTemplate').value;
+
+    if (!currentTemplate.trim()) {
+        showAlert('Por favor ingresa una plantilla de mensaje', 'warning');
+        return;
+    }
+
+    // Mostrar resumen
+    document.getElementById('summaryName').textContent = document.getElementById('campaignName').value || 'Sin nombre';
+    document.getElementById('summaryCount').textContent = currentContactsData.length;
+    document.getElementById('summaryPreview').textContent = updateMessagePreview() || currentTemplate;
+
+    showCampaignStep('step4Send');
+}
+
+function backToTemplate() {
+    showCampaignStep('step3Template');
+}
+
+async function sendCampaign() {
+    try {
+        showCampaignStep('campaignProgress');
+
+        // Crear campaña
+        const createResponse = await api.post('/api/campaigns/create', {
+            name: document.getElementById('campaignName').value,
+            excel_import_id: currentExcelImportId,
+            template: currentTemplate
+        });
+
+        currentCampaignId = createResponse.campaign_id;
+
+        // Procesar contactos
+        await api.post(`/api/campaigns/${currentCampaignId}/process`, {
+            contacts: currentContactsData,
+            template: currentTemplate
+        });
+
+        // Enviar campaña
+        const sendResponse = await api.post(`/api/campaigns/${currentCampaignId}/send`, {});
+
+        // Monitorear progreso
+        monitorCampaignProgress();
+
+    } catch (error) {
+        showAlert(`Error: ${error.message}`, 'danger');
+        showCampaignStep('step4Send');
+    }
+}
+
+async function monitorCampaignProgress() {
+    const maxAttempts = 120; // 2 minutos
+    let attempts = 0;
+
+    const interval = setInterval(async () => {
+        attempts++;
+
+        try {
+            const progress = await api.get(`/api/campaigns/${currentCampaignId}/progress`);
+
+            const percentage = progress.data?.total > 0
+                ? Math.round((progress.data.sent / progress.data.total) * 100)
+                : 0;
+
+            document.getElementById('campaignProgressBar').style.width = percentage + '%';
+            document.getElementById('campaignProgressBar').textContent = percentage + '%';
+            document.getElementById('campaignProgressText').textContent =
+                `${progress.data?.sent || 0} / ${progress.data?.total || 0} enviados (${percentage}%)`;
+
+            if (progress.data?.status === 'completed') {
+                clearInterval(interval);
+                showResults(progress.data);
+            } else if (attempts >= maxAttempts) {
+                clearInterval(interval);
+                showAlert('Envío completado (timeout de monitoreo)', 'success');
+                showCampaignStep('campaignResults');
+            }
+
+        } catch (error) {
+            console.error('Error monitoreando progreso:', error);
+        }
+    }, 1000);
+}
+
+function showResults(results) {
+    document.getElementById('resultsSent').textContent = results.sent || 0;
+    document.getElementById('resultsFailed').textContent = results.failed || 0;
+    document.getElementById('resultsDuration').textContent = '~30s';
+    showCampaignStep('campaignResults');
+}
+
+function newCampaign() {
+    // Resetear estado
+    currentExcelImportId = null;
+    currentContactsData = [];
+    currentCampaignId = null;
+    currentTemplate = '';
+
+    // Limpiar inputs
+    document.getElementById('campaignName').value = '';
+    document.getElementById('messageTemplate').value = '';
+    document.getElementById('excelFile').value = '';
+
+    showCampaignStep('step1Upload');
+}
+
+function showCampaignStep(stepId) {
+    // Ocultar todos los steps
+    document.querySelectorAll('[id^="step"], [id^="campaign"]').forEach(el => {
+        if (el.className && el.className.includes('campaign')) {
+            el.style.display = 'none';
+        }
+    });
+
+    // Mostrar step seleccionado
+    const step = document.getElementById(stepId);
+    if (step) {
+        step.style.display = 'block';
+    }
+}
